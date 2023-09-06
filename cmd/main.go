@@ -3,9 +3,12 @@ package main
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/punkestu/buletin-go/internal/repo"
 	"github.com/punkestu/buletin-go/internal/service"
 	"log"
+	"net/http"
 )
 
 func main() {
@@ -16,43 +19,63 @@ func main() {
 	}
 	r := repo.NewBulletin(conn)
 	s := service.NewBulletin(r)
-	created, err := s.Create(service.BulletinCreate{
-		Head: sql.NullString{
-			String: "Hello",
-			Valid:  true,
-		},
-		Description: sql.NullString{
-			String: "ini hello",
-			Valid:  true,
-		},
-		CreatorID: sql.NullInt32{
-			Int32: 100,
-			Valid: true,
-		},
+	c := cors.New()
+	app := fiber.New()
+
+	bulletin := app.Group("/bulletin")
+
+	bulletin.Use(c)
+
+	bulletin.Post("/", func(ctx *fiber.Ctx) error {
+		var r struct {
+			Head        string `json:"head"`
+			Description string `json:"description"`
+		}
+		if err := ctx.BodyParser(&r); err != nil {
+			return ctx.SendStatus(http.StatusBadRequest)
+		}
+		bulletin, err := s.Create(service.BulletinCreate{
+			Head:        r.Head,
+			Description: r.Description,
+		})
+		if err != nil {
+			return ctx.SendStatus(http.StatusInternalServerError)
+		}
+		return ctx.JSON(bulletin)
 	})
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-	bs, err := s.GetAll()
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-	log.Println(bs)
-	bs, err = s.GetByCreator(100)
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-	log.Println(bs)
-	b, err := s.GetByID(created.ID)
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-	log.Println(*b)
-	err = s.Delete(created.ID)
+
+	bulletin.Get("/", func(ctx *fiber.Ctx) error {
+		bulletins, err := s.GetAll()
+		if err != nil {
+			return ctx.SendStatus(http.StatusInternalServerError)
+		}
+		return ctx.JSON(bulletins)
+	})
+
+	bulletin.Get("/:id", func(ctx *fiber.Ctx) error {
+		id, err := ctx.ParamsInt("id")
+		if err != nil {
+			return ctx.SendStatus(http.StatusBadRequest)
+		}
+		bulletin, err := s.GetByID(int32(id))
+		if err != nil {
+			return ctx.SendStatus(http.StatusInternalServerError)
+		}
+		return ctx.JSON(bulletin)
+	})
+
+	bulletin.Delete("/:id", func(ctx *fiber.Ctx) error {
+		id, err := ctx.ParamsInt("id")
+		if err != nil {
+			return ctx.SendStatus(http.StatusBadRequest)
+		}
+		if err := s.Delete(int32(id)); err != nil {
+			return ctx.SendStatus(http.StatusInternalServerError)
+		}
+		return ctx.SendStatus(http.StatusOK)
+	})
+
+	err = app.Listen(":8000")
 	if err != nil {
 		log.Fatalln(err)
 		return

@@ -1,12 +1,14 @@
 package domain
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Bulletin struct {
-	ID          int32          `json:"id"`
-	Head        sql.NullString `json:"head"`
-	Description sql.NullString `json:"description"`
-	CreatorID   sql.NullInt32  `json:"creator_id"`
+	ID          int32  `json:"id"`
+	Head        string `json:"head"`
+	Description string `json:"description"`
+	CreatorID   *int32 `json:"creator_id,omitempty"`
 }
 
 type BulletinOpt struct {

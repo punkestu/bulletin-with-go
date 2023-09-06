@@ -11,20 +11,20 @@ type Bulletin struct {
 }
 
 type BulletinCreate struct {
-	Head        sql.NullString `json:"head"`
-	Description sql.NullString `json:"description"`
-	CreatorID   sql.NullInt32  `json:"creator_id"`
+	Head        string `json:"head"`
+	Description string `json:"description"`
+	CreatorID   *int32 `json:"creator_id"`
 }
 
 func NewBulletin(b *repo.Bulletin) *Bulletin {
 	return &Bulletin{b: b}
 }
 
-func (b *Bulletin) Create(bulletin BulletinCreate) (*domain.Bulletin, error) {
+func (b *Bulletin) Create(param BulletinCreate) (*domain.Bulletin, error) {
 	id, err := b.b.Save(domain.Bulletin{
-		Head:        bulletin.Head,
-		Description: bulletin.Description,
-		CreatorID:   bulletin.CreatorID,
+		Head:        param.Head,
+		Description: param.Description,
+		CreatorID:   param.CreatorID,
 	})
 	if err != nil {
 		return nil, err
